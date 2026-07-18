@@ -56,8 +56,9 @@ if __name__ == '__main__':
 
     # User-friendly name, import name, pip specification.
     requiredModules = [
-        ['requests', 'requests', 'requests >= 2.0.0, < 3.0.0'],
-        ['Beautiful Soup 4', 'bs4', 'beautifulsoup4 >= 4.4.0, < 5.0.0']
+        ['Beautiful Soup 4', 'bs4', 'beautifulsoup4 >= 4.4.0, < 5.0.0'],
+        ['cloudscraper', 'cloudscraper', 'cloudscraper >= 3.0.0, < 4.0.0'],
+        ['requests', 'requests', 'requests >= 2.0.0, < 3.0.0']
     ]
 
     def moduleExists(name):
@@ -119,8 +120,14 @@ if __name__ == '__main__':
 
 # ------
 
+import cloudscraper
 import requests
 from bs4 import BeautifulSoup
+
+DEFAULT_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+
+_SESSION = cloudscraper.create_scraper()
+_SESSION.headers.update({'User-Agent': os.environ.get('SCRAPER_USER_AGENT', DEFAULT_UA)})
 
 BASE_URL = 'https://downloads.khinsider.com/'
 
@@ -163,7 +170,9 @@ def lazyProperty(func):
 
 
 def getSoup(*args, **kwargs):
-    r = requests.get(*args, **kwargs)
+    r = _SESSION.get(*args, **kwargs)
+    import pyperclip
+    pyperclip.copy(r.text)
     return toSoup(r)
 
 REMOVE_RE = re.compile(br"^</td>\s*$", re.MULTILINE)
@@ -392,7 +401,7 @@ class Song(object):
     
     @lazyProperty
     def _soup(self):
-        r = requests.get(self.url, timeout=10)
+        r = _SESSION.get(self.url, timeout=10)
         if r.url.rsplit('/', 1)[-1] == '404':
             raise NonexistentSongError("Nonexistent song page (404).")
         return getSoup(self.url)
@@ -440,7 +449,7 @@ class File(object):
     
     def download(self, path):
         """Download the file to `path`."""
-        response = requests.get(self.url, timeout=10)
+        response = _SESSION.get(self.url, timeout=10)
         with open(path, 'wb') as outFile:
             outFile.write(response.content)
 
@@ -466,7 +475,7 @@ def search(term):
     `term`. The first tuple contains album name results, and the second song
     name results.
     """
-    r = requests.get(urljoin(BASE_URL, 'search'), params={'search': term})
+    r = _SESSION.get(urljoin(BASE_URL, 'search'), params={'search': term})
     path = urlsplit(r.url).path
     if path.split('/', 2)[1] == 'game-soundtracks':
         return [Soundtrack(path.rsplit('/', 1)[-1])]
