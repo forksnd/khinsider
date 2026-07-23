@@ -171,8 +171,6 @@ def lazyProperty(func):
 
 def getSoup(*args, **kwargs):
     r = _SESSION.get(*args, **kwargs)
-    import pyperclip
-    pyperclip.copy(r.text)
     return toSoup(r)
 
 REMOVE_RE = re.compile(br"^</td>\s*$", re.MULTILINE)
